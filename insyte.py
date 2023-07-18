@@ -1,11 +1,32 @@
 import streamlit as st
+import sqlite3
+import pandas as pd
+
+# Connect to the SQLite database
+conn = sqlite3.connect('construction_data.db')
+c = conn.cursor()
+
+# Create a table for submitted data if it doesn't exist
+c.execute('''CREATE TABLE IF NOT EXISTS construction_data
+             (id INTEGER PRIMARY KEY AUTOINCREMENT,
+              detail_category TEXT,
+              detail_value TEXT)''')
+conn.commit()
+
+def insert_data(detail_category, detail_value):
+    # Insert submitted data into the database
+    c.execute("INSERT INTO construction_data (detail_category, detail_value) VALUES (?, ?)", (detail_category, detail_value))
+    conn.commit()
+
+def fetch_submitted_data():
+    # Fetch the submitted data from the database
+    c.execute("SELECT * FROM construction_data")
+    submitted_data = c.fetchall()
+    return submitted_data
 
 def main():
     st.title("Construction Project Information")
 
-    submitted_project_details = []  # List to store submitted project details
-    submitted_construction_details = []  # List to store submitted construction details
-    
     with st.form("Project Details"):
         st.header("Project Details")
         gemeinde = st.text_input("Gemeinde")
@@ -15,7 +36,7 @@ def main():
     
     st.header("Construction Details")
     
-    col1, col2, col3, col4, col5, col6= st.columns(6)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     
     with col1:
         st.subheader("Section")
@@ -34,41 +55,40 @@ def main():
         st.subheader("Trench Size (cm)")
         trench_sizes = ["15x45", "30x60", "30x80"]
         trench_size = st.selectbox("Trench Size (cm)", trench_sizes)
-    
+
     with col5:
         st.subheader("Drilling")
-        section = st.text_input("Drilling")
+        drilling = st.text_input("Drilling")
 
     with col6:
         st.subheader("Historic")
-        section = st.text_input("Historic")
+        historic = st.text_input("Historic")
     
     submit_button = st.button("Submit Construction Details")
 
     if submit_button_project:
-        # Store project details
-        submitted_project_details.append(("Gemeinde", gemeinde))
-        submitted_project_details.append(("Subcontractor", subcontractor))
-        submitted_project_details.append(("SubCo Representative", subco_representative))
+        # Store project details in the database
+        insert_data("Gemeinde", gemeinde)
+        insert_data("Subcontractor", subcontractor)
+        insert_data("SubCo Representative", subco_representative)
     
     if submit_button:
-        # Store construction details
-        submitted_construction_details.append(("Section", section))
-        submitted_construction_details.append(("Length (m)", length))
-        submitted_construction_details.append(("Surface Type", surface_type))
-        submitted_construction_details.append(("Trench Size (cm)", trench_size))
+        # Store construction details in the database
+        insert_data("Section", section)
+        insert_data("Length (m)", length)
+        insert_data("Surface Type", surface_type)
+        insert_data("Trench Size (cm)", trench_size)
+        insert_data("Drilling", drilling)
+        insert_data("Historic", historic)
 
-    # Display submitted project details
-    if submitted_project_details:
-        st.header("Submitted Project Details")
-        for detail in submitted_project_details:
-            st.write(f"- {detail[0]}: {detail[1]}")
-    
-    # Display submitted construction details
-    if submitted_construction_details:
-        st.header("Submitted Construction Details")
-        for detail in submitted_construction_details:
-            st.write(f"- {detail[0]}: {detail[1]}")
+    # Fetch and display submitted data from the database in a table
+    submitted_data = fetch_submitted_data()
+    if submitted_data:
+        st.header("Submitted Details")
+        headers = ["Section", "Length (m)", "Surface Type", "Trench Size (cm)", "Drilling", "Historic"]
+        values = [data[2] for data in submitted_data if data[1] in headers]
+        data_dict = {header: value for header, value in zip(headers, values)}
+        st.write(pd.DataFrame([data_dict]))
 
 if __name__ == "__main__":
     main()
